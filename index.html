@@ -1,0 +1,3467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./epsilon editz logo.png">
+    <title>Epsilon editz | Creative Studio</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/DragControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.17/dist/interact.min.js"></script>
+    <style>
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #FFD700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #loading-screen img {
+            max-width: 300px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        :root {
+            --primary: #FFD700;
+            --primary-hover: #fcd100;
+            --bg: #ffffff;
+            --sidebar-bg: #FFD700;
+            --surface: #f9f9f9;
+            --text: #1a1a1a;
+            --text-muted: #666666;
+            --border: #eeeeee;
+            --radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --text: #ffffff;
+            --text-muted: #aaaaaa;
+            --border: #333333;
+            --sidebar-bg: #e6c200;
+            --scrollbar-thumb: rgba(255, 255, 255, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 8px;
+            color: #000;
+            z-index: 100;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.open {
+            transform: translateX(0);
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* NEW: Make the navigation area scrollable */
+        .sidebar nav {
+            flex-grow: 1; /* Take up the available vertical space */
+            overflow-y: auto; /* Add vertical scrollbar when needed */
+            padding-right: 10px; /* Add some space for the scrollbar */
+        }
+
+        /* NEW: Custom scrollbar styling for webkit browsers (Chrome, Safari, Edge) */
+        .sidebar nav::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar nav::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb);
+            border-radius: 3px;
+        }
+
+        /* NEW: Custom scrollbar for Firefox */
+        .sidebar nav {
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thumb) transparent;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateX(5px);
+        }
+
+        /* Main Content Area */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            background: var(--bg);
+        }
+
+        .content-panel {
+            flex: 1;
+            padding: 32px;
+            display: none;
+            overflow-y: auto;
+        }
+
+        .content-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Editor Specific Styles */
+        .editor-workspace {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 24px;
+            height: 100%;
+        }
+
+        .canvas-container {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 2px dashed var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #main-canvas {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: filter 0.1s ease-out;
+            cursor: crosshair;
+        }
+
+        /* 3D Canvas Styling */
+        #three-canvas-container {
+            width: 100%;
+            height: 100%;
+            cursor: move;
+        }
+
+        .editor-tools {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: var(--surface);
+            padding: 20px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .tool-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tool-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        /* Settings Styles */
+        .settings-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-row:last-child { border: none; }
+
+        .btn {
+            background: var(--primary);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        #file-input { display: none; }
+
+        /* Templates Styles */
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .template-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+        }
+
+        .template-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Documents Styles */
+        .document-editor {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        #document-content {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            overflow-y: auto;
+            min-height: 400px;
+        }
+
+        #document-content:empty:before {
+            content: attr(placeholder);
+            color: var(--text-muted);
+        }
+
+        .document-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Canvas Editor Styles */
+        .canvas-element {
+            position: absolute;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            cursor: move;
+            min-width: 50px;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .canvas-element.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .canvas-element input, .canvas-element textarea {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: inherit;
+            color: inherit;
+        }
+
+        .canvas-element button {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: var(--primary);
+            color: #000;
+            cursor: pointer;
+        }
+
+        .canvas-element img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .canvas-element p {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        /* Animation Engine Styles */
+        .anim-element {
+            position: absolute;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            padding: 5px;
+            box-sizing: border-box;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            min-width: 50px;
+            min-height: 30px;
+        }
+
+        .anim-element.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .anim-element div {
+            background: var(--primary);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+        }
+
+        /* Excel Styles */
+        .excel-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .excel-toolbar {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            background: var(--bg);
+        }
+
+        .excel-formula-bar {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: var(--surface);
+        }
+
+        #formula-input {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .excel-grid {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background: #fff;
+        }
+
+        .excel-table {
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .excel-table th, .excel-table td {
+            border: 1px solid #ccc;
+            padding: 0;
+            min-width: 80px;
+            height: 25px;
+            position: relative;
+        }
+
+        .excel-table th {
+            background: #f0f0f0;
+            font-weight: normal;
+            text-align: center;
+            color: #333;
+            user-select: none;
+        }
+
+        .excel-table td input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            padding: 0 4px;
+            outline: none;
+            font-family: inherit;
+            font-size: 13px;
+            background: transparent;
+        }
+
+        .excel-table td.selected {
+            border: 2px solid var(--primary);
+            z-index: 10;
+        }
+        
+        .excel-row-header {
+            width: 40px;
+            background: #f0f0f0;
+            text-align: center;
+        }
+
+        /* Slides Styles */
+        .slides-container {
+            display: flex;
+            height: 100%;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .slides-sidebar {
+            width: 200px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .slide-thumbnail {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #fff;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .slide-thumbnail.active {
+            border: 2px solid var(--primary);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        
+        .slide-thumbnail-number {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .slide-editor {
+            flex: 1;
+            background: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .current-slide {
+            width: 80%;
+            aspect-ratio: 16/9;
+            background: #fff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide-element {
+            position: absolute;
+            cursor: move;
+            border: 1px dashed transparent;
+            padding: 5px;
+        }
+
+        .slide-element:hover, .slide-element.selected {
+            border-color: var(--primary);
+        }
+        
+        .slide-toolbar {
+            width: 100%;
+            padding: 10px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* Schedule Styles */
+        .schedule-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 20px;
+        }
+
+        .schedule-toolbar {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            align-items: center;
+        }
+
+        .schedule-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            grid-template-rows: 40px repeat(24, 1fr);
+            overflow: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            position: relative;
+        }
+
+        .schedule-header {
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-right: 1px solid rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .schedule-time-col {
+            background: #f0f0f0;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+
+        .schedule-cell {
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            min-height: 40px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .schedule-cell:hover {
+            background: rgba(0,0,0,0.05);
+        }
+
+        .schedule-event {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            top: 2px;
+            bottom: 2px;
+            background: var(--primary);
+            border-radius: 4px;
+            padding: 4px;
+            font-size: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+
+        /* Node Editor Styles */
+        .node-editor-container {
+            display: flex;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            background-color: #1e1e1e; /* Dark background for node editor */
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .node-toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--surface);
+            padding: 10px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .node-canvas {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+        }
+
+        .node-canvas:active {
+            cursor: grabbing;
+        }
+
+        .node-block {
+            position: absolute;
+            min-width: 150px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        .node-header {
+            padding: 8px 12px;
+            background: var(--primary);
+            border-radius: 8px 8px 0 0;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .node-content {
+            padding: 12px;
+            font-size: 13px;
+        }
+
+        .node-ports {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 12px 12px 12px;
+        }
+
+        .node-port {
+            width: 12px;
+            height: 12px;
+            background: #666;
+            border-radius: 50%;
+            cursor: crosshair;
+            position: relative;
+        }
+
+        .node-port:hover {
+            background: var(--primary);
+            transform: scale(1.2);
+        }
+
+        .node-port.input {
+            margin-left: -18px; /* Pull outside left */
+        }
+
+        .node-port.output {
+            margin-right: -18px; /* Pull outside right */
+        }
+
+        .connection-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Projects Styles */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .project-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .project-card h4 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .project-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            flex: 1;
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .project-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg);
+            padding: 24px;
+            border-radius: var(--radius);
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .form-group label {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .form-group input, .form-group textarea {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: inherit;
+        }
+        
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* Sidebar Hidden */
+        .sidebar.hidden {
+            display: none;
+        }
+
+        /* Mobile Styles */
+        #mobile-menu-btn {
+            display: none;
+            padding: 8px;
+        }
+
+        @media (max-width: 767px) {
+            #mobile-menu-btn {
+                display: flex;
+            }
+
+            .sidebar {
+                position: fixed;
+            }
+
+            .main-container {
+                margin-left: 0;
+            }
+
+            header {
+                padding: 0 16px;
+                height: 60px;
+            }
+
+            .content-panel {
+                padding: 16px;
+            }
+
+            .editor-workspace {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .editor-tools {
+                order: 2;
+            }
+
+            .canvas-container {
+                order: 1;
+                min-height: 300px;
+            }
+
+            .templates-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 0;
+            }
+
+            .document-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .settings-card {
+                margin-bottom: 16px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .sidebar {
+                position: static;
+                transform: none;
+                display: flex;
+            }
+
+            .sidebar-overlay {
+                display: none !important;
+            }
+
+            #mobile-menu-btn {
+                display: none;
+            }
+        }
+
+        /* Intro Cards */
+        .intro-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .intro-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .intro-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .intro-card i {
+            font-size: 48px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .intro-card h3 {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        .intro-card p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div id="loading-screen" style="background: #fff;">
+        <img src="./epsilon editz logo.png" alt="Loading...">
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <i data-lucide="zap"></i> EDITZ -by warren adrian/epsilon
+        </div>
+        <nav>
+            <div class="nav-item active" onclick="showPage('editor')">
+                <i data-lucide="image"></i> Image Editor
+            </div>
+            <div class="nav-item" onclick="showPage('three-d')">
+                <i data-lucide="box"></i> 3D Studio
+            </div>
+            <div class="nav-item" onclick="showPage('paint')">
+                <i data-lucide="palette"></i> Paint
+            </div>
+            <div class="nav-item" onclick="showPage('templates')">
+                <i data-lucide="layout"></i> Templates
+            </div>
+            <div class="nav-item" onclick="showPage('documents')">
+                <i data-lucide="file-text"></i> Documents
+            </div>
+            <div class="nav-item" onclick="showPage('canvas')">
+                <i data-lucide="edit-3"></i> Canvas Editor
+            </div>
+            <div class="nav-item" onclick="showPage('animation')">
+                <i data-lucide="play"></i> Animation Engine
+            </div>
+            <div class="nav-item" onclick="showPage('excel')">
+                <i data-lucide="grid"></i> Excel Sheet
+            </div>
+            <div class="nav-item" onclick="showPage('slides')">
+                <i data-lucide="presentation"></i> Slides
+            </div>
+            <div class="nav-item" onclick="showPage('schedule')">
+                <i data-lucide="calendar"></i> Schedules
+            </div>
+            <div class="nav-item" onclick="showPage('node-editor')">
+                <i data-lucide="workflow"></i> Node Editor
+            </div>
+            <div class="nav-item" onclick="showPage('projects')">
+                <i data-lucide="folder"></i> Projects
+            </div>
+            <div class="nav-item" onclick="showPage('extensions')">
+                <i data-lucide="package"></i> Extensions
+            </div>
+            <div class="nav-item" onclick="showPage('settings')">
+                <i data-lucide="settings"></i> System Settings
+            </div>
+        </nav>
+        <div style="margin-top: auto; font-size: 12px; opacity: 0.7;">
+            v1.4.0 Build Stable
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <main class="main-container">
+        <header>
+            <button id="mobile-menu-btn" class="btn btn-outline" onclick="toggleSidebar()">
+                <i data-lucide="menu"></i>
+            </button>
+            <h2 id="page-title">Image Editor</h2>
+            <div id="header-actions" style="display: flex; gap: 10px;">
+                <button class="btn btn-outline" onclick="triggerUpload()">
+                    <i data-lucide="upload"></i> Upload
+                </button>
+                <button class="btn" onclick="exportImage()">
+                    <i data-lucide="download"></i> Export
+                </button>
+            </div>
+        </header>
+
+        <!-- Image Editor Page -->
+        <section id="editor-page" class="content-panel">
+            <div class="editor-workspace">
+                <div class="canvas-container">
+                    <input type="file" id="file-input" accept="image/*">
+                    <canvas id="main-canvas" data-src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1000"></canvas>
+                </div>
+
+                <div class="editor-tools">
+                    <h3>Adjustments</h3>
+                    <div class="tool-group">
+                        <label>Brightness <span id="v-bright">100%</span></label>
+                        <input type="range" id="brightness" min="0" max="200" value="100" oninput="applyFilters()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Contrast <span id="v-contrast">100%</span></label>
+                        <input type="range" id="contrast" min="0" max="200" value="100" oninput="applyFilters()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Saturation <span id="v-saturate">100%</span></label>
+                        <input type="range" id="saturate" min="0" max="200" value="100" oninput="applyFilters()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Grayscale <span id="v-gray">0%</span></label>
+                        <input type="range" id="grayscale" min="0" max="100" value="0" oninput="applyFilters()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Hue Rotate <span id="v-hue">0°</span></label>
+                        <input type="range" id="hue" min="0" max="360" value="0" oninput="applyFilters()">
+                    </div>
+                    <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="resetFilters()">Reset All</button>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border);">
+                <h3>Drawing Tools</h3>
+                <div class="tool-group">
+                    <label>Tool</label>
+                    <select id="tool-select" onchange="changeTool(this.value)" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                        <option value="brush">Brush</option>
+                        <option value="eraser">Eraser</option>
+                    </select>
+                </div>
+                <div class="tool-group">
+                    <label>Brush Color</label>
+                    <input type="color" id="brush-color" value="#000000" onchange="brushColor = this.value" style="width: 100%; height: 40px; border: none; border-radius: 8px;">
+                </div>
+                <div class="tool-group">
+                    <label>Brush Size <span id="v-size">5</span></label>
+                    <input type="range" id="brush-size" min="1" max="50" value="5" oninput="changeSize(this.value)">
+                </div>
+                <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="clearDrawing()">Clear Drawing</button>
+            </div>
+        </section>
+
+        <!-- 3D Studio Page -->
+        <section id="three-d-page" class="content-panel">
+            <div class="editor-workspace">
+                <div class="canvas-container" style="border-style: solid; padding: 0;">
+                    <div id="three-canvas-container"></div>
+                </div>
+
+                <div class="editor-tools">
+                    <h3>3D Objects</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-outline" onclick="add3DObject('box')">Cube</button>
+                        <button class="btn btn-outline" onclick="add3DObject('sphere')">Sphere</button>
+                        <button class="btn btn-outline" onclick="add3DObject('capsule')">Capsule</button>
+                        <button class="btn btn-outline" onclick="add3DObject('cylinder')">Cylinder</button>
+                        <button class="btn btn-outline" onclick="add3DObject('cone')">Cone</button>
+                        <button class="btn btn-outline" onclick="add3DObject('torus')">Torus</button>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px solid var(--border);">
+                    <h3>Properties</h3>
+                    <div class="tool-group">
+                        <label>Object Color</label>
+                        <input type="color" id="obj-color" value="#FFD700" style="width: 100%; height: 40px; border: none; border-radius: 8px;">
+                    </div>
+                    <button class="btn btn-outline" style="width: 100%; color: #ff4444; border-color: #ff4444;" onclick="clearScene()">Clear Scene</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Paint Page -->
+        <section id="paint-page" class="content-panel">
+            <div class="editor-workspace">
+                <div class="canvas-container">
+                    <canvas id="paint-canvas"></canvas>
+                </div>
+
+                <div class="editor-tools">
+                    <h3>Drawing Tools</h3>
+                    <div class="tool-group">
+                        <label>Tool</label>
+                        <select id="paint-tool-select" onchange="changePaintTool(this.value)" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                            <option value="brush">Brush</option>
+                            <option value="eraser">Eraser</option>
+                        </select>
+                    </div>
+                    <div class="tool-group">
+                        <label>Brush Color</label>
+                        <input type="color" id="paint-brush-color" value="#000000" onchange="paintBrushColor = this.value" style="width: 100%; height: 40px; border: none; border-radius: 8px;">
+                    </div>
+                    <div class="tool-group">
+                        <label>Brush Size <span id="paint-v-size">5</span></label>
+                        <input type="range" id="paint-brush-size" min="1" max="50" value="5" oninput="changePaintSize(this.value)">
+                    </div>
+                    <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="clearPaintCanvas()">Clear Canvas</button>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" onclick="exportPaint()">Export</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Excel Page -->
+        <section id="excel-page" class="content-panel">
+            <div class="excel-container">
+                <div class="excel-toolbar">
+                    <button class="btn btn-outline" onclick="excelExport()">Export CSV</button>
+                    <button class="btn btn-outline" onclick="excelClear()">Clear</button>
+                    <button class="btn" onclick="openSaveDialog('excel', getExcelData)">Save Project</button>
+                </div>
+                <div class="excel-formula-bar">
+                    <span>fx</span>
+                    <input type="text" id="formula-input" placeholder="Enter value or formula (e.g., =SUM(A1:A5))">
+                </div>
+                <div class="excel-grid">
+                    <table class="excel-table" id="excel-table">
+                        <!-- Grid generated by JS -->
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slides Page -->
+        <section id="slides-page" class="content-panel">
+            <div class="slides-container">
+                <div class="slides-sidebar" id="slides-list">
+                    <!-- Thumbnails generated by JS -->
+                    <button class="btn btn-outline" style="width: 100%;" onclick="addSlide()">+ New Slide</button>
+                </div>
+
+                <div class="slide-editor">
+                    <div class="slide-toolbar">
+                        <button class="btn btn-outline" onclick="addTextToSlide()">Add Text</button>
+                        <button class="btn btn-outline" onclick="addImageToSlide()">Add Image</button>
+                        <button class="btn btn-outline" onclick="deleteSlide()">Delete Slide</button>
+                        <button class="btn" onclick="openSaveDialog('slides', getSlidesData)">Save Project</button>
+                    </div>
+                    <div class="current-slide" id="current-slide-canvas">
+                        <!-- Slide content -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Schedule Page -->
+        <section id="schedule-page" class="content-panel">
+            <div class="schedule-container">
+                <div class="schedule-toolbar">
+                    <button class="btn btn-outline" onclick="clearSchedule()">Clear Schedule</button>
+                    <button class="btn" onclick="openSaveDialog('schedule', getScheduleData)">Save Project</button>
+                </div>
+                <div class="schedule-grid" id="schedule-grid">
+                    <!-- Grid generated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Node Editor Page -->
+        <section id="node-editor-page" class="content-panel">
+            <div class="node-editor-container">
+                <div class="node-toolbar">
+                    <button class="btn btn-outline" onclick="addNode('process')">Add Process</button>
+                    <button class="btn btn-outline" onclick="addNode('input')">Add Input</button>
+                    <button class="btn btn-outline" onclick="addNode('output')">Add Output</button>
+                    <button class="btn btn-outline" onclick="clearNodes()">Clear</button>
+                    <button class="btn" onclick="openSaveDialog('node', getNodeData)">Save Project</button>
+                </div>
+                <div class="node-canvas" id="node-canvas">
+                    <svg id="connections-layer" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;"></svg>
+                    <!-- Nodes generated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Projects Page -->
+        <section id="projects-page" class="content-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>My Projects</h2>
+                <button class="btn btn-outline" onclick="loadProjectsPage()">Refresh</button>
+            </div>
+            <div class="projects-grid" id="projects-list">
+                <!-- Projects generated by JS -->
+            </div>
+        </section>
+
+        <!-- Extensions Page -->
+        <section id="extensions-page" class="content-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>My Extensions</h2>
+                <button class="btn" onclick="openCreateExtensionModal()">Create Extension</button>
+            </div>
+            <div class="projects-grid" id="extensions-list">
+                <!-- Extensions generated by JS -->
+            </div>
+        </section>
+
+        <!-- Settings Page -->
+        <section id="settings-page" class="content-panel">
+            <div class="settings-card">
+                <h3>Appearance</h3>
+                <div class="settings-row">
+                    <div>
+                        <strong>Dark Mode</strong>
+                        <p style="font-size: 12px; color: var(--text-muted);">Toggle high-contrast dark theme</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="dark-mode-toggle" onchange="toggleTheme()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>Security</h3>
+                <div class="settings-row">
+                    <div>
+                        <strong>Block DevTools</strong>
+                        <p style="font-size: 12px; color: var(--text-muted);">Discourage use of console</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="security-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>User Profile</h3>
+                <div class="settings-row">
+                    <div>
+                        <strong>Name</strong>
+                    </div>
+                    <input type="text" id="user-name" placeholder="Enter your name" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+                </div>
+                <div class="settings-row">
+                    <div>
+                        <strong>Age</strong>
+                    </div>
+                    <input type="number" id="user-age" placeholder="Enter your age" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+                </div>
+                <div class="settings-row">
+                    <div>
+                        <strong>Description</strong>
+                    </div>
+                    <textarea id="user-desc" rows="3" placeholder="Tell us about yourself" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);"></textarea>
+                </div>
+                <button class="btn" onclick="saveUserProfile()">Save Profile</button>
+                <button class="btn btn-outline" onclick="logout()">Logout</button>
+            </div>
+        </section>
+
+        <!-- Templates Page -->
+        <section id="templates-page" class="content-panel">
+            <h2>Image Templates</h2>
+            <div class="templates-grid">
+                <div class="template-item" onclick="loadTemplate('bright')">Bright & Vibrant</div>
+                <div class="template-item" onclick="loadTemplate('sepia')">Vintage Sepia</div>
+                <div class="template-item" onclick="loadTemplate('cool')">Cool Tones</div>
+                <div class="template-item" onclick="loadTemplate('warm')">Warm Glow</div>
+                <div class="template-item" onclick="loadTemplate('mono')">Monochrome</div>
+            </div>
+        </section>
+
+        <!-- Documents Page -->
+        <section id="documents-page" class="content-panel">
+            <div class="document-editor">
+                <div id="document-content" contenteditable="true" placeholder="Start typing your document here..."></div>
+                <div class="document-actions">
+                    <button class="btn" onclick="saveDocument()">Save to Local</button>
+                    <button class="btn btn-outline" onclick="loadDocument()">Load from Local</button>
+                    <button class="btn" onclick="downloadDocument()">Download as .txt</button>
+                    <button class="btn btn-outline" onclick="clearDocument()">Clear</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Canvas Editor Page -->
+        <section id="canvas-page" class="content-panel">
+            <div class="editor-workspace">
+                <div class="canvas-container" id="design-canvas" style="position: relative; overflow: auto; min-height: 600px;">
+                    <!-- Elements will be added here -->
+                </div>
+
+                <div class="editor-tools">
+                    <h3>Elements</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-outline" onclick="addElement('input')">Input</button>
+                        <button class="btn btn-outline" onclick="addElement('button')">Button</button>
+                        <button class="btn btn-outline" onclick="addElement('div')">Shape</button>
+                        <button class="btn btn-outline" onclick="addElement('img')">Image</button>
+                        <button class="btn btn-outline" onclick="addElement('p')">Text</button>
+                        <button class="btn btn-outline" onclick="addElement('textarea')">Textarea</button>
+                    </div>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" onclick="clearCanvas()">Clear Canvas</button>
+                    <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="exportCanvas()">Export as Image</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Animation Engine Page -->
+        <section id="animation-page" class="content-panel">
+            <div class="editor-workspace">
+                <div class="canvas-container" id="animation-canvas" style="position: relative; min-height: 400px;">
+                    <!-- Animation elements will be added here -->
+                </div>
+
+                <div class="editor-tools">
+                    <h3>Animation Controls</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <button class="btn" onclick="playAnimation()">Play</button>
+                        <button class="btn btn-outline" onclick="pauseAnimation()">Pause</button>
+                        <button class="btn btn-outline" onclick="stopAnimation()">Stop</button>
+                    </div>
+
+                    <hr style="border: none; border-top: 1px solid var(--border);">
+                    <h3>Add Element</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-outline" onclick="addAnimElement('div')">Add Shape</button>
+                        <button class="btn btn-outline" onclick="addAnimElement('p')">Add Text</button>
+                    </div>
+
+                    <hr style="border: none; border-top: 1px solid var(--border);">
+                    <h3>Animation Properties</h3>
+                    <div class="tool-group">
+                        <label>Duration (s) <span id="anim-duration-val">2</span></label>
+                        <input type="range" id="anim-duration" min="0.1" max="10" value="2" step="0.1" oninput="updateDurationLabel()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Delay (s) <span id="anim-delay-val">0</span></label>
+                        <input type="range" id="anim-delay" min="0" max="5" value="0" step="0.1" oninput="updateDelayLabel()">
+                    </div>
+                    <div class="tool-group">
+                        <label>Easing</label>
+                        <select id="anim-easing" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                            <option value="linear">Linear</option>
+                            <option value="ease">Ease</option>
+                            <option value="ease-in">Ease In</option>
+                            <option value="ease-out">Ease Out</option>
+                            <option value="ease-in-out" selected>Ease In Out</option>
+                        </select>
+                    </div>
+                    <div class="tool-group">
+                        <label>Animation Type</label>
+                        <select id="anim-type" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+                            <option value="bounce">Bounce</option>
+                            <option value="fade">Fade In/Out</option>
+                            <option value="slide">Slide</option>
+                            <option value="rotate">Rotate</option>
+                            <option value="scale">Scale</option>
+                        </select>
+                    </div>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" onclick="applyAnimation()">Apply Animation</button>
+                    <button class="btn btn-outline" style="width: 100%; margin-top: 10px;" onclick="clearAnimationCanvas()">Clear Canvas</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Intro Page -->
+        <section id="intro-page" class="content-panel active">
+            <div style="text-align: center; padding: 20px;">
+                <h1>Welcome to Epsilon Editz</h1>
+                <p>Your creative studio for all things digital. Explore the tools below to get started!</p>
+            </div>
+            <div class="intro-cards">
+                <div class="intro-card" onclick="showPage('editor')">
+                    <i data-lucide="image"></i>
+                    <h3>Image Editor</h3>
+                    <p>Edit and enhance your images with filters, adjustments, and drawing tools.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('three-d')">
+                    <i data-lucide="box"></i>
+                    <h3>3D Studio</h3>
+                    <p>Create and manipulate 3D objects in an interactive environment.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('paint')">
+                    <i data-lucide="palette"></i>
+                    <h3>Paint</h3>
+                    <p>Draw and paint freely with various brushes and colors.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('templates')">
+                    <i data-lucide="layout"></i>
+                    <h3>Templates</h3>
+                    <p>Apply pre-made templates to quickly style your images.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('documents')">
+                    <i data-lucide="file-text"></i>
+                    <h3>Documents</h3>
+                    <p>Create and edit text documents with rich formatting.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('canvas')">
+                    <i data-lucide="edit-3"></i>
+                    <h3>Canvas Editor</h3>
+                    <p>Design custom layouts with interactive elements.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('animation')">
+                    <i data-lucide="play"></i>
+                    <h3>Animation Engine</h3>
+                    <p>Animate elements with various effects and timings.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('excel')">
+                    <i data-lucide="grid"></i>
+                    <h3>Excel Sheet</h3>
+                    <p>Work with spreadsheets, formulas, and data analysis.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('slides')">
+                    <i data-lucide="presentation"></i>
+                    <h3>Slides</h3>
+                    <p>Create presentations with slides and multimedia content.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('schedule')">
+                    <i data-lucide="calendar"></i>
+                    <h3>Schedules</h3>
+                    <p>Plan and manage your events and appointments.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('node-editor')">
+                    <i data-lucide="workflow"></i>
+                    <h3>Node Editor</h3>
+                    <p>Build workflows and connections with visual nodes.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('projects')">
+                    <i data-lucide="folder"></i>
+                    <h3>Projects</h3>
+                    <p>Manage and organize your saved projects.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('extensions')">
+                    <i data-lucide="package"></i>
+                    <h3>Extensions</h3>
+                    <p>Create, download, and manage custom extensions.</p>
+                </div>
+                <div class="intro-card" onclick="showPage('settings')">
+                    <i data-lucide="settings"></i>
+                    <h3>System Settings</h3>
+                    <p>Customize your experience and user preferences.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Save Project Modal -->
+    <div id="save-project-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Save Project</div>
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" id="project-name" placeholder="My Awesome Project">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="project-desc" rows="3" placeholder="What is this project about?"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeSaveDialog()">Cancel</button>
+                <button class="btn" onclick="confirmSaveProject()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Extension Modal -->
+    <div id="create-extension-modal" class="modal">
+        <div class="modal-content" style="width: 600px; max-height: 80vh; overflow-y: auto;">
+            <div class="modal-header">Create Extension</div>
+            <div class="form-group">
+                <label>Extension Type</label>
+                <select id="extension-type" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text);">
+                    <option value="page">Page Extension (adds a new page to the site)</option>
+                    <option value="component">Component Extension (code snippet)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Extension Name</label>
+                <input type="text" id="extension-name" placeholder="My Extension">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="extension-desc" rows="2" placeholder="What does this extension do?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>HTML</label>
+                <textarea id="extension-html" rows="6" placeholder="Enter HTML code..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>CSS</label>
+                <textarea id="extension-css" rows="6" placeholder="Enter CSS code..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>JavaScript</label>
+                <textarea id="extension-js" rows="6" placeholder="Enter JavaScript code..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-outline" onclick="closeCreateExtensionModal()">Cancel</button>
+                <button class="btn" onclick="saveExtension()">Save Extension</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CORE NAVIGATION ---
+        lucide.createIcons();
+
+        function showPage(pageId) {
+            if(pageId === 'intro') {
+                document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.getElementById('intro-page').classList.add('active');
+                document.getElementById('page-title').innerText = 'Welcome';
+                document.getElementById('header-actions').style.display = 'none';
+                document.querySelector('.sidebar').classList.add('hidden');
+                closeSidebar();
+                return;
+            }
+
+            document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            document.getElementById(pageId + '-page').classList.add('active');
+
+            // Find active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                const text = item.innerText.toLowerCase();
+                if(text.includes(pageId.replace('-', ' '))) {
+                    item.classList.add('active');
+                }
+            });
+
+            document.getElementById('page-title').innerText = pageId.replace('-', ' ').toUpperCase();
+
+            // Show/Hide header buttons depending on page
+            document.getElementById('header-actions').style.display = (pageId === 'editor') ? 'flex' : 'none';
+
+            // Show sidebar
+            document.querySelector('.sidebar').classList.remove('hidden');
+
+            // Close sidebar on mobile after navigation
+            closeSidebar();
+
+            // Resize 3D if needed
+            if(pageId === 'three-d') {
+                onWindowResize();
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.getElementById('dark-mode-toggle').checked;
+            document.body.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        function closeSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        }
+
+        function continueToSite() {
+            showPage('editor');
+        }
+
+        function loadUserProfile() {
+            document.getElementById('user-name').value = localStorage.getItem('userName') || '';
+            document.getElementById('user-age').value = localStorage.getItem('userAge') || '';
+            document.getElementById('user-desc').value = localStorage.getItem('userDesc') || '';
+        }
+
+        function saveUserProfile() {
+            const name = document.getElementById('user-name').value;
+            const age = document.getElementById('user-age').value;
+            const desc = document.getElementById('user-desc').value;
+            localStorage.setItem('userName', name);
+            localStorage.setItem('userAge', age);
+            localStorage.setItem('userDesc', desc);
+            alert('Profile saved!');
+        }
+
+        function logout() {
+            // Clear user data on logout
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userAge');
+            localStorage.removeItem('userDesc');
+            showPage('intro');
+        }
+
+        // --- 2. IMAGE ENGINE ---
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        let originalImage;
+        let drawingPaths = [];
+        let currentPath = null;
+        let isDrawing = false;
+        let tool = 'brush';
+        let brushColor = '#000000';
+        let brushSize = 5;
+        const fileInput = document.getElementById('file-input');
+
+        function redrawCanvas() {
+            if (!originalImage) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const filterStr = getFilterString();
+            ctx.filter = filterStr;
+            ctx.drawImage(originalImage, 0, 0);
+            ctx.filter = 'none';
+            drawingPaths.forEach(path => drawPath(path));
+        }
+
+        function getFilterString() {
+            const b = document.getElementById('brightness').value;
+            const c = document.getElementById('contrast').value;
+            const s = document.getElementById('saturate').value;
+            const g = document.getElementById('grayscale').value;
+            const h = document.getElementById('hue').value;
+            return `brightness(${b}%) contrast(${c}%) saturate(${s}%) grayscale(${g}%) hue-rotate(${h}deg)`;
+        }
+
+        function drawPath(path) {
+            if (path.type === 'brush') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = path.color;
+                ctx.lineWidth = path.size;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                path.points.forEach((point, i) => {
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                });
+                ctx.stroke();
+            } else if (path.type === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = path.size;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                path.points.forEach((point, i) => {
+                    if (i === 0) ctx.moveTo(point.x, point.y);
+                    else ctx.lineTo(point.x, point.y);
+                });
+                ctx.stroke();
+                ctx.globalCompositeOperation = 'source-over';
+            }
+        }
+
+        function changeTool(t) { tool = t; }
+        function changeSize(s) { brushSize = parseInt(s); document.getElementById('v-size').innerText = s; }
+        function clearDrawing() { drawingPaths = []; redrawCanvas(); }
+
+        function triggerUpload() { fileInput.click(); }
+
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage = new Image();
+                    originalImage.onload = () => {
+                        canvas.width = originalImage.naturalWidth;
+                        canvas.height = originalImage.naturalHeight;
+                        redrawCanvas();
+                    };
+                    originalImage.src = e.target.result;
+                    resetFilters();
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        function applyFilters() {
+            const b = document.getElementById('brightness').value;
+            const c = document.getElementById('contrast').value;
+            const s = document.getElementById('saturate').value;
+            const g = document.getElementById('grayscale').value;
+            const h = document.getElementById('hue').value;
+
+            // Update UI labels
+            document.getElementById('v-bright').innerText = b + '%';
+            document.getElementById('v-contrast').innerText = c + '%';
+            document.getElementById('v-saturate').innerText = s + '%';
+            document.getElementById('v-gray').innerText = g + '%';
+            document.getElementById('v-hue').innerText = h + '°';
+
+            redrawCanvas();
+        }
+
+        function resetFilters() {
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            document.getElementById('saturate').value = 100;
+            document.getElementById('grayscale').value = 0;
+            document.getElementById('hue').value = 0;
+            applyFilters();
+        }
+
+        function exportImage() {
+            const exportCanvas = document.createElement('canvas');
+            const exportCtx = exportCanvas.getContext('2d');
+            exportCanvas.width = originalImage.naturalWidth;
+            exportCanvas.height = originalImage.naturalHeight;
+
+            // Apply current filters
+            exportCtx.filter = getFilterString();
+            exportCtx.drawImage(originalImage, 0, 0);
+            exportCtx.filter = 'none';
+
+            // Draw the drawing paths
+            drawingPaths.forEach(path => {
+                if (path.type === 'brush') {
+                    exportCtx.globalCompositeOperation = 'source-over';
+                    exportCtx.strokeStyle = path.color;
+                    exportCtx.lineWidth = path.size;
+                    exportCtx.lineCap = 'round';
+                    exportCtx.lineJoin = 'round';
+                    exportCtx.beginPath();
+                    path.points.forEach((point, i) => {
+                        if (i === 0) exportCtx.moveTo(point.x, point.y);
+                        else exportCtx.lineTo(point.x, point.y);
+                    });
+                    exportCtx.stroke();
+                } else if (path.type === 'eraser') {
+                    exportCtx.globalCompositeOperation = 'destination-out';
+                    exportCtx.lineWidth = path.size;
+                    exportCtx.lineCap = 'round';
+                    exportCtx.lineJoin = 'round';
+                    exportCtx.beginPath();
+                    path.points.forEach((point, i) => {
+                        if (i === 0) exportCtx.moveTo(point.x, point.y);
+                        else exportCtx.lineTo(point.x, point.y);
+                    });
+                    exportCtx.stroke();
+                    exportCtx.globalCompositeOperation = 'source-over';
+                }
+            });
+
+            const link = document.createElement('a');
+            link.download = 'edited-flow-image.png';
+            link.href = exportCanvas.toDataURL();
+            link.click();
+        }
+
+        // Drawing event handlers
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            currentPath = { type: tool, color: brushColor, size: brushSize, points: [{x, y}] };
+            drawingPaths.push(currentPath);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            currentPath.points.push({x, y});
+            drawPath(currentPath);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            currentPath = null;
+        }
+
+        // --- 3. PAINT ENGINE ---
+        const paintCanvas = document.getElementById('paint-canvas');
+        const paintCtx = paintCanvas.getContext('2d');
+        let paintDrawingPaths = [];
+        let paintCurrentPath = null;
+        let paintIsDrawing = false;
+        let paintTool = 'brush';
+        let paintBrushColor = '#000000';
+        let paintBrushSize = 5;
+
+        function redrawPaintCanvas() {
+            paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+            paintCtx.fillStyle = 'white';
+            paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
+            paintDrawingPaths.forEach(path => drawPaintPath(path));
+        }
+
+        function drawPaintPath(path) {
+            if (path.type === 'brush') {
+                paintCtx.globalCompositeOperation = 'source-over';
+                paintCtx.strokeStyle = path.color;
+                paintCtx.lineWidth = path.size;
+                paintCtx.lineCap = 'round';
+                paintCtx.lineJoin = 'round';
+                paintCtx.beginPath();
+                path.points.forEach((point, i) => {
+                    if (i === 0) paintCtx.moveTo(point.x, point.y);
+                    else paintCtx.lineTo(point.x, point.y);
+                });
+                paintCtx.stroke();
+            } else if (path.type === 'eraser') {
+                paintCtx.globalCompositeOperation = 'destination-out';
+                paintCtx.lineWidth = path.size;
+                paintCtx.lineCap = 'round';
+                paintCtx.lineJoin = 'round';
+                paintCtx.beginPath();
+                path.points.forEach((point, i) => {
+                    if (i === 0) paintCtx.moveTo(point.x, point.y);
+                    else paintCtx.lineTo(point.x, point.y);
+                });
+                paintCtx.stroke();
+                paintCtx.globalCompositeOperation = 'source-over';
+            }
+        }
+
+        function changePaintTool(t) { paintTool = t; }
+        function changePaintSize(s) { paintBrushSize = parseInt(s); document.getElementById('paint-v-size').innerText = s; }
+        function clearPaintCanvas() { paintDrawingPaths = []; redrawPaintCanvas(); }
+
+        function exportPaint() {
+            const link = document.createElement('a');
+            link.download = 'paint-drawing.png';
+            link.href = paintCanvas.toDataURL();
+            link.click();
+        }
+
+        // Paint drawing event handlers
+        paintCanvas.addEventListener('mousedown', startPaintDrawing);
+        paintCanvas.addEventListener('mousemove', paintDraw);
+        paintCanvas.addEventListener('mouseup', stopPaintDrawing);
+        paintCanvas.addEventListener('mouseout', stopPaintDrawing);
+
+        function startPaintDrawing(e) {
+            paintIsDrawing = true;
+            const rect = paintCanvas.getBoundingClientRect();
+            const scaleX = paintCanvas.width / rect.width;
+            const scaleY = paintCanvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            paintCurrentPath = { type: paintTool, color: paintBrushColor, size: paintBrushSize, points: [{x, y}] };
+            paintDrawingPaths.push(paintCurrentPath);
+        }
+
+        function paintDraw(e) {
+            if (!paintIsDrawing) return;
+            const rect = paintCanvas.getBoundingClientRect();
+            const scaleX = paintCanvas.width / rect.width;
+            const scaleY = paintCanvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            paintCurrentPath.points.push({x, y});
+            drawPaintPath(paintCurrentPath);
+        }
+
+        function stopPaintDrawing() {
+            paintIsDrawing = false;
+            paintCurrentPath = null;
+        }
+
+        // --- 3. 3D STUDIO ENGINE ---
+        let scene, camera, renderer, objects = [], controls, dragControls;
+        const container = document.getElementById('three-canvas-container');
+
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf4f4f4);
+
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 1);
+            pointLight.position.set(5, 5, 5);
+            scene.add(pointLight);
+
+            updateDragControls();
+            animate();
+        }
+
+        function updateDragControls() {
+            if (dragControls) {
+                dragControls.dispose();
+            }
+            dragControls = new THREE.DragControls(objects, camera, renderer.domElement);
+            dragControls.addEventListener('dragstart', function (event) {
+                controls.enabled = false;
+            });
+            dragControls.addEventListener('dragend', function (event) {
+                controls.enabled = true;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function add3DObject(type) {
+            let geometry;
+            const color = document.getElementById('obj-color').value;
+            const material = new THREE.MeshStandardMaterial({ color: color });
+
+            if(type === 'box') geometry = new THREE.BoxGeometry(1, 1, 1);
+            else if(type === 'sphere') geometry = new THREE.SphereGeometry(0.7, 32, 32);
+            else if(type === 'capsule') geometry = new THREE.CapsuleGeometry(0.5, 1, 4, 8);
+            else if(type === 'cylinder') geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+            else if(type === 'cone') geometry = new THREE.ConeGeometry(0.5, 1, 32);
+            else if(type === 'torus') geometry = new THREE.TorusGeometry(0.7, 0.3, 16, 100);
+
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, (Math.random() - 0.5) * 2);
+            scene.add(mesh);
+            objects.push(mesh);
+            updateDragControls();
+        }
+
+        function clearScene() {
+            objects.forEach(obj => scene.remove(obj));
+            objects = [];
+            updateDragControls();
+        }
+
+        function onWindowResize() {
+            if(!camera || !renderer) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        window.addEventListener('load', function() {
+            const loadingScreen = document.getElementById('loading-screen');
+            loadingScreen.classList.add('fade-out');
+            setTimeout(() => loadingScreen.remove(), 500);
+        });
+
+        window.onload = () => {
+            // Load initial image
+            const initialImg = new Image();
+            initialImg.crossOrigin = 'anonymous';
+            initialImg.onload = () => {
+                originalImage = initialImg;
+                canvas.width = originalImage.naturalWidth;
+                canvas.height = originalImage.naturalHeight;
+                redrawCanvas();
+            };
+            initialImg.src = canvas.getAttribute('data-src');
+
+            // Initialize paint canvas
+            paintCanvas.width = 800;
+            paintCanvas.height = 600;
+            paintCtx.fillStyle = 'white';
+            paintCtx.fillRect(0, 0, paintCanvas.width, paintCanvas.height);
+
+            init3D();
+            loadSavedDocument();
+            initExcel();
+            initSlides();
+            initSchedule();
+            initNodeEditor();
+            loadProjectsPage();
+            loadExtensionsPage();
+            loadEnabledExtensions();
+            loadUserProfile();
+
+            // Check if user is logged in (has user data)
+            if (localStorage.getItem('userName')) {
+                showPage('editor');
+            } else {
+                showPage('intro');
+            }
+        };
+
+        // --- 5. TEMPLATES ---
+        function loadTemplate(type) {
+            resetFilters();
+            switch(type) {
+                case 'bright':
+                    document.getElementById('brightness').value = 120;
+                    document.getElementById('contrast').value = 110;
+                    document.getElementById('saturate').value = 120;
+                    break;
+                case 'sepia':
+                    document.getElementById('grayscale').value = 50;
+                    document.getElementById('hue').value = 30;
+                    document.getElementById('saturate').value = 80;
+                    break;
+                case 'cool':
+                    document.getElementById('hue').value = 180;
+                    document.getElementById('saturate').value = 90;
+                    document.getElementById('brightness').value = 95;
+                    break;
+                case 'warm':
+                    document.getElementById('hue').value = 20;
+                    document.getElementById('saturate').value = 110;
+                    document.getElementById('brightness').value = 105;
+                    break;
+                case 'mono':
+                    document.getElementById('grayscale').value = 100;
+                    document.getElementById('contrast').value = 120;
+                    break;
+            }
+            applyFilters();
+            showPage('editor'); // Switch to editor after loading template
+        }
+
+        // --- 6. DOCUMENTS ---
+        function saveDocument() {
+            const content = document.getElementById('document-content').innerText;
+            localStorage.setItem('epsilonDocument', content);
+            alert('Document saved to local storage!');
+        }
+
+        function loadDocument() {
+            const content = localStorage.getItem('epsilonDocument');
+            if (content) {
+                document.getElementById('document-content').innerText = content;
+            } else {
+                alert('No saved document found.');
+            }
+        }
+
+        function loadSavedDocument() {
+            const content = localStorage.getItem('epsilonDocument');
+            if (content) {
+                document.getElementById('document-content').innerText = content;
+            }
+        }
+
+        function downloadDocument() {
+            const content = document.getElementById('document-content').innerText;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'document.txt';
+            link.click();
+        }
+
+        function clearDocument() {
+            if (confirm('Are you sure you want to clear the document?')) {
+                document.getElementById('document-content').innerText = '';
+            }
+        }
+
+        // --- 7. CANVAS EDITOR ---
+        const designCanvas = document.getElementById('design-canvas');
+        let elementCounter = 0;
+        let selectedElement = null;
+
+        function addElement(type) {
+            const element = document.createElement(type);
+            element.className = 'canvas-element';
+            element.id = `element-${elementCounter++}`;
+            element.style.left = '50px';
+            element.style.top = '50px';
+            element.style.width = '150px';
+            element.style.height = '50px';
+
+            if (type === 'input') {
+                element.type = 'text';
+                element.placeholder = 'Input text';
+            } else if (type === 'button') {
+                element.textContent = 'Button';
+            } else if (type === 'div') {
+                element.style.background = 'var(--primary)';
+                element.textContent = 'Shape';
+            } else if (type === 'img') {
+                element.src = 'https://via.placeholder.com/150x50?text=Image';
+                element.alt = 'Image';
+            } else if (type === 'p') {
+                element.contentEditable = true;
+                element.textContent = 'Editable Text';
+            } else if (type === 'textarea') {
+                element.placeholder = 'Textarea';
+            }
+
+            designCanvas.appendChild(element);
+            makeInteractable(element);
+        }
+
+        function makeInteractable(element) {
+            interact(element)
+                .draggable({
+                    onmove: dragMoveListener,
+                    modifiers: [
+                        interact.modifiers.restrictRect({
+                            restriction: 'parent',
+                            endOnly: true
+                        })
+                    ]
+                })
+                .resizable({
+                    edges: { left: true, right: true, bottom: true, top: true },
+                    listeners: {
+                        move: function (event) {
+                            let { x, y } = event.target.dataset;
+
+                            x = (parseFloat(x) || 0) + event.deltaRect.left;
+                            y = (parseFloat(y) || 0) + event.deltaRect.top;
+
+                            Object.assign(event.target.style, {
+                                width: `${event.rect.width}px`,
+                                height: `${event.rect.height}px`,
+                                transform: `translate(${x}px, ${y}px)`
+                            });
+
+                            Object.assign(event.target.dataset, { x, y });
+                        }
+                    },
+                    modifiers: [
+                        interact.modifiers.restrictEdges({
+                            outer: 'parent'
+                        }),
+                        interact.modifiers.restrictSize({
+                            min: { width: 50, height: 30 }
+                        })
+                    ]
+                })
+                .on('tap', function (event) {
+                    selectElement(event.target);
+                });
+        }
+
+        function dragMoveListener(event) {
+            const target = event.target;
+            const x = (parseFloat(target.dataset.x) || 0) + event.dx;
+            const y = (parseFloat(target.dataset.y) || 0) + event.dy;
+
+            target.style.transform = `translate(${x}px, ${y}px)`;
+
+            Object.assign(target.dataset, { x, y });
+        }
+
+        function selectElement(element) {
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+            }
+            selectedElement = element;
+            selectedElement.classList.add('selected');
+        }
+
+        function clearCanvas() {
+            designCanvas.innerHTML = '';
+            selectedElement = null;
+        }
+
+        function exportCanvas() {
+            // Simple export as image using html2canvas if available, but since not included, use a basic approach
+            // For now, just alert
+            alert('Export functionality requires html2canvas library. Add it to implement full export.');
+        }
+
+        // Click on canvas to deselect
+        designCanvas.addEventListener('click', function(e) {
+            if (e.target === designCanvas) {
+                if (selectedElement) {
+                    selectedElement.classList.remove('selected');
+                    selectedElement = null;
+                }
+            }
+        });
+
+        // --- 8. ANIMATION ENGINE ---
+        let animElements = [];
+        let selectedAnimElement = null;
+        let animCounter = 0;
+
+        function addAnimElement(type) {
+            const element = document.createElement(type);
+            element.className = 'anim-element';
+            element.id = `anim-element-${animCounter++}`;
+            element.style.left = `${50 + (animElements.length * 60)}px`;
+            element.style.top = `${50 + (animElements.length * 60)}px`;
+            element.style.width = '100px';
+            element.style.height = '50px';
+
+            if (type === 'div') {
+                element.innerHTML = '<div>Shape</div>';
+            } else if (type === 'p') {
+                element.textContent = 'Text';
+            }
+
+            element.onclick = () => selectAnimElement(element);
+            document.getElementById('animation-canvas').appendChild(element);
+            animElements.push(element);
+        }
+
+        function selectAnimElement(element) {
+            if (selectedAnimElement) {
+                selectedAnimElement.classList.remove('selected');
+            }
+            selectedAnimElement = element;
+            selectedAnimElement.classList.add('selected');
+        }
+
+        function updateDurationLabel() {
+            document.getElementById('anim-duration-val').innerText = document.getElementById('anim-duration').value;
+        }
+
+        function updateDelayLabel() {
+            document.getElementById('anim-delay-val').innerText = document.getElementById('anim-delay').value;
+        }
+
+        function applyAnimation() {
+            if (!selectedAnimElement) {
+                alert('Please select an element first.');
+                return;
+            }
+
+            const duration = parseFloat(document.getElementById('anim-duration').value) * 1000;
+            const delay = parseFloat(document.getElementById('anim-delay').value) * 1000;
+            const easing = document.getElementById('anim-easing').value;
+            const type = document.getElementById('anim-type').value;
+
+            // Remove existing animation
+            selectedAnimElement.style.animation = '';
+
+            // Apply new animation
+            let keyframes = '';
+            switch (type) {
+                case 'bounce':
+                    keyframes = `
+                        @keyframes bounce {
+                            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                            40% { transform: translateY(-30px); }
+                            60% { transform: translateY(-15px); }
+                        }
+                    `;
+                    selectedAnimElement.style.animation = `bounce ${duration}ms ${easing} ${delay}ms`;
+                    break;
+                case 'fade':
+                    keyframes = `
+                        @keyframes fade {
+                            0% { opacity: 0; }
+                            50% { opacity: 1; }
+                            100% { opacity: 0; }
+                        }
+                    `;
+                    selectedAnimElement.style.animation = `fade ${duration}ms ${easing} ${delay}ms`;
+                    break;
+                case 'slide':
+                    keyframes = `
+                        @keyframes slide {
+                            0% { transform: translateX(-100px); }
+                            100% { transform: translateX(0); }
+                        }
+                    `;
+                    selectedAnimElement.style.animation = `slide ${duration}ms ${easing} ${delay}ms`;
+                    break;
+                case 'rotate':
+                    keyframes = `
+                        @keyframes rotate {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `;
+                    selectedAnimElement.style.animation = `rotate ${duration}ms ${easing} ${delay}ms`;
+                    break;
+                case 'scale':
+                    keyframes = `
+                        @keyframes scale {
+                            0% { transform: scale(0.5); }
+                            50% { transform: scale(1.2); }
+                            100% { transform: scale(1); }
+                        }
+                    `;
+                    selectedAnimElement.style.animation = `scale ${duration}ms ${easing} ${delay}ms`;
+                    break;
+            }
+
+            // Inject keyframes if not already present
+            if (!document.getElementById(`keyframes-${type}`)) {
+                const style = document.createElement('style');
+                style.id = `keyframes-${type}`;
+                style.textContent = keyframes;
+                document.head.appendChild(style);
+            }
+        }
+
+        function playAnimation() {
+            animElements.forEach(el => {
+                el.style.animationPlayState = 'running';
+            });
+        }
+
+        function pauseAnimation() {
+            animElements.forEach(el => {
+                el.style.animationPlayState = 'paused';
+            });
+        }
+
+        function stopAnimation() {
+            animElements.forEach(el => {
+                el.style.animation = 'none';
+                el.offsetHeight; // Trigger reflow
+                el.style.animation = '';
+            });
+        }
+
+        function clearAnimationCanvas() {
+            document.getElementById('animation-canvas').innerHTML = '';
+            animElements = [];
+            selectedAnimElement = null;
+            // Remove injected styles
+            document.querySelectorAll('style[id^="keyframes-"]').forEach(style => style.remove());
+        }
+
+        // Click on animation canvas to deselect
+        document.getElementById('animation-canvas').addEventListener('click', function(e) {
+            if (e.target === this) {
+                if (selectedAnimElement) {
+                    selectedAnimElement.classList.remove('selected');
+                    selectedAnimElement = null;
+                }
+            }
+        });
+
+        // --- 9. EXCEL ENGINE ---
+        const excelTable = document.getElementById('excel-table');
+        const formulaInput = document.getElementById('formula-input');
+        let excelData = {};
+        let selectedCell = null;
+        const rows = 50;
+        const cols = 26; // A-Z
+
+        function initExcel() {
+            let headerRow = '<tr><th class="excel-row-header"></th>';
+            for (let i = 0; i < cols; i++) {
+                headerRow += `<th>${String.fromCharCode(65 + i)}</th>`;
+            }
+            headerRow += '</tr>';
+            excelTable.innerHTML = headerRow;
+
+            for (let r = 1; r <= rows; r++) {
+                let rowHtml = `<tr><th class="excel-row-header">${r}</th>`;
+                for (let c = 0; c < cols; c++) {
+                    const colLetter = String.fromCharCode(65 + c);
+                    const cellId = `${colLetter}${r}`;
+                    rowHtml += `<td data-id="${cellId}" onclick="selectCell(this)"><input type="text" onchange="updateCell('${cellId}', this.value)" onfocus="selectCell(this.parentElement)"></td>`;
+                }
+                rowHtml += '</tr>';
+                excelTable.innerHTML += rowHtml;
+            }
+        }
+
+        function selectCell(td) {
+            if (selectedCell) selectedCell.classList.remove('selected');
+            selectedCell = td;
+            selectedCell.classList.add('selected');
+            const cellId = td.dataset.id;
+            const val = excelData[cellId] || '';
+            formulaInput.value = val;
+        }
+
+        function updateCell(id, value) {
+            excelData[id] = value;
+            if (value.startsWith('=')) {
+                evaluateFormula(id, value);
+            } else {
+                // Check if other cells depend on this one
+                recalculateAll();
+            }
+        }
+        
+        formulaInput.addEventListener('change', (e) => {
+            if(selectedCell) {
+                const id = selectedCell.dataset.id;
+                const input = selectedCell.querySelector('input');
+                input.value = e.target.value;
+                updateCell(id, e.target.value);
+            }
+        });
+
+        function evaluateFormula(id, formula) {
+            try {
+                const expression = formula.substring(1).toUpperCase();
+                // Simple replacement of cell refs with values
+                // This is a basic implementation. For full excel support, a parser is needed.
+                // We will support basic arithmetic and SUM/AVG
+                
+                let parsed = expression;
+                
+                // Handle ranges like SUM(A1:A3) - very basic support
+                const rangeRegex = /([A-Z]+)\(([A-Z][0-9]+):([A-Z][0-9]+)\)/g;
+                parsed = parsed.replace(rangeRegex, (match, func, start, end) => {
+                    const cells = getRangeCells(start, end);
+                    const values = cells.map(c => parseFloat(excelData[c] || 0));
+                    if (func === 'SUM') return values.reduce((a, b) => a + b, 0);
+                    if (func === 'AVG') return values.reduce((a, b) => a + b, 0) / values.length;
+                    return 0;
+                });
+
+                // Replace cell references like A1 with values
+                const cellRegex = /[A-Z][0-9]+/g;
+                parsed = parsed.replace(cellRegex, (match) => {
+                    const val = excelData[match];
+                    return parseFloat(val) || 0;
+                });
+
+                const result = eval(parsed);
+                const input = document.querySelector(`td[data-id="${id}"] input`);
+                if(input) input.value = result;
+                // Store the formula but show result? 
+                // In this simple version, we store formula in excelData but show result in input.
+                // When selecting, we show formula in bar.
+            } catch (e) {
+                console.error(e);
+                const input = document.querySelector(`td[data-id="${id}"] input`);
+                if(input) input.value = 'ERROR';
+            }
+        }
+        
+        function getRangeCells(start, end) {
+            const startCol = start.charCodeAt(0);
+            const startRow = parseInt(start.substring(1));
+            const endCol = end.charCodeAt(0);
+            const endRow = parseInt(end.substring(1));
+            
+            const cells = [];
+            for(let c = startCol; c <= endCol; c++) {
+                for(let r = startRow; r <= endRow; r++) {
+                    cells.push(String.fromCharCode(c) + r);
+                }
+            }
+            return cells;
+        }
+
+        function recalculateAll() {
+            for(let id in excelData) {
+                if(excelData[id].startsWith('=')) {
+                    evaluateFormula(id, excelData[id]);
+                }
+            }
+        }
+
+        function excelClear() {
+            excelData = {};
+            document.querySelectorAll('.excel-table input').forEach(i => i.value = '');
+        }
+
+        function excelExport() {
+            let csv = '';
+            for(let r = 1; r <= rows; r++) {
+                let row = [];
+                for(let c = 0; c < cols; c++) {
+                    const colLetter = String.fromCharCode(65 + c);
+                    const id = `${colLetter}${r}`;
+                    const input = document.querySelector(`td[data-id="${id}"] input`);
+                    row.push(input ? input.value : '');
+                }
+                csv += row.join(',') + '\n';
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'sheet.csv';
+            link.click();
+        }
+
+        function getExcelData() {
+            return excelData;
+        }
+
+        // --- 4. SECURITY ---
+        document.addEventListener('contextmenu', e => {
+            if (document.getElementById('security-toggle').checked) e.preventDefault();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (!document.getElementById('security-toggle').checked) return;
+            if (e.key === "F12" || (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key))) e.preventDefault();
+        });
+
+        setInterval(() => {
+            if (document.getElementById('security-toggle').checked) {
+                const t = performance.now();
+                //debugger;
+                if (performance.now() - t > 100) {} 
+            }
+        }, 1000);
+
+        // --- 10. SLIDES ENGINE ---
+        let slides = [];
+        let currentSlideIndex = 0;
+        let slideCounter = 0;
+
+        function initSlides() {
+            if (slides.length === 0) {
+                addSlide();
+            } else {
+                renderSlideThumbnails();
+                renderCurrentSlide();
+            }
+        }
+
+        function addSlide() {
+            const slide = {
+                id: `slide-${slideCounter++}`,
+                elements: []
+            };
+            slides.push(slide);
+            currentSlideIndex = slides.length - 1;
+            renderSlideThumbnails();
+            renderCurrentSlide();
+        }
+
+        function deleteSlide() {
+            if (slides.length <= 1) {
+                alert("Cannot delete the last slide.");
+                return;
+            }
+            slides.splice(currentSlideIndex, 1);
+            if (currentSlideIndex >= slides.length) {
+                currentSlideIndex = slides.length - 1;
+            }
+            renderSlideThumbnails();
+            renderCurrentSlide();
+        }
+
+        function renderSlideThumbnails() {
+            const container = document.getElementById('slides-list');
+            // Keep the "New Slide" button
+            const btn = container.querySelector('button');
+            container.innerHTML = '';
+            
+            slides.forEach((slide, index) => {
+                const thumb = document.createElement('div');
+                thumb.className = `slide-thumbnail ${index === currentSlideIndex ? 'active' : ''}`;
+                thumb.onclick = () => {
+                    currentSlideIndex = index;
+                    renderSlideThumbnails();
+                    renderCurrentSlide();
+                };
+                
+                const num = document.createElement('div');
+                num.className = 'slide-thumbnail-number';
+                num.innerText = index + 1;
+                
+                thumb.appendChild(num);
+                container.appendChild(thumb);
+            });
+            
+            container.appendChild(btn);
+        }
+
+        function renderCurrentSlide() {
+            const canvas = document.getElementById('current-slide-canvas');
+            canvas.innerHTML = '';
+            
+            const slide = slides[currentSlideIndex];
+            slide.elements.forEach(el => {
+                const div = document.createElement('div');
+                div.className = 'slide-element';
+                div.style.left = el.x + 'px';
+                div.style.top = el.y + 'px';
+                div.style.width = el.width + 'px';
+                div.style.height = el.height + 'px';
+                
+                if (el.type === 'text') {
+                    div.contentEditable = true;
+                    div.innerText = el.content;
+                    div.onblur = (e) => { el.content = e.target.innerText; };
+                } else if (el.type === 'image') {
+                    const img = document.createElement('img');
+                    img.src = el.content;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'contain';
+                    div.appendChild(img);
+                }
+                
+                canvas.appendChild(div);
+                makeInteractableSlideElement(div, el);
+            });
+        }
+
+        function addTextToSlide() {
+            const slide = slides[currentSlideIndex];
+            slide.elements.push({
+                type: 'text',
+                content: 'New Text',
+                x: 50,
+                y: 50,
+                width: 200,
+                height: 50
+            });
+            renderCurrentSlide();
+        }
+
+        function addImageToSlide() {
+            const url = prompt("Enter image URL:");
+            if (url) {
+                const slide = slides[currentSlideIndex];
+                slide.elements.push({
+                    type: 'image',
+                    content: url,
+                    x: 50,
+                    y: 50,
+                    width: 200,
+                    height: 200
+                });
+                renderCurrentSlide();
+            }
+        }
+
+        function makeInteractableSlideElement(element, data) {
+            interact(element)
+                .draggable({
+                    onmove: (event) => {
+                        const target = event.target;
+                        const x = (parseFloat(target.style.left) || 0) + event.dx;
+                        const y = (parseFloat(target.style.top) || 0) + event.dy;
+
+                        target.style.left = x + 'px';
+                        target.style.top = y + 'px';
+
+                        data.x = x;
+                        data.y = y;
+                    },
+                    modifiers: [
+                        interact.modifiers.restrictRect({
+                            restriction: 'parent',
+                            endOnly: true
+                        })
+                    ]
+                })
+                .resizable({
+                    edges: { left: true, right: true, bottom: true, top: true },
+                    listeners: {
+                        move: function (event) {
+                            let { x, y } = event.target.dataset;
+                            
+                            // Update element style
+                            event.target.style.width = event.rect.width + 'px';
+                            event.target.style.height = event.rect.height + 'px';
+                            
+                            // Translate if resizing from top/left
+                            const currentLeft = parseFloat(event.target.style.left) || 0;
+                            const currentTop = parseFloat(event.target.style.top) || 0;
+                            
+                            event.target.style.left = (currentLeft + event.deltaRect.left) + 'px';
+                            event.target.style.top = (currentTop + event.deltaRect.top) + 'px';
+
+                            // Update data model
+                            data.width = event.rect.width;
+                            data.height = event.rect.height;
+                            data.x = parseFloat(event.target.style.left);
+                            data.y = parseFloat(event.target.style.top);
+                        }
+                    }
+                });
+        }
+
+        function getSlidesData() {
+            return slides;
+        }
+
+        // --- 12. SCHEDULE ENGINE ---
+        let scheduleEvents = [];
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const hours = Array.from({length: 24}, (_, i) => i); // 0-23
+
+        function initSchedule() {
+            const grid = document.getElementById('schedule-grid');
+            grid.innerHTML = '';
+
+            // Header Row (Time + Days)
+            grid.appendChild(createCell('Time', 'schedule-header'));
+            days.forEach(day => {
+                grid.appendChild(createCell(day, 'schedule-header'));
+            });
+
+            // Time Rows
+            hours.forEach(hour => {
+                // Time Column
+                const timeLabel = `${hour.toString().padStart(2, '0')}:00`;
+                grid.appendChild(createCell(timeLabel, 'schedule-time-col'));
+
+                // Day Columns
+                days.forEach((day, dayIndex) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'schedule-cell';
+                    cell.dataset.day = dayIndex;
+                    cell.dataset.hour = hour;
+                    cell.onclick = () => addEvent(dayIndex, hour);
+                    grid.appendChild(cell);
+                });
+            });
+            
+            renderEvents();
+        }
+
+        function createCell(text, className) {
+            const div = document.createElement('div');
+            div.className = className;
+            div.innerText = text;
+            return div;
+        }
+
+        function addEvent(dayIndex, hour) {
+            const title = prompt("Enter event title:");
+            if (title) {
+                scheduleEvents.push({
+                    id: Date.now(),
+                    day: dayIndex,
+                    hour: hour,
+                    title: title,
+                    duration: 1 // Default 1 hour
+                });
+                renderEvents();
+            }
+        }
+
+        function renderEvents() {
+            // Clear existing events from DOM (not data)
+            document.querySelectorAll('.schedule-event').forEach(e => e.remove());
+
+            scheduleEvents.forEach(event => {
+                // Find the cell
+                const cell = document.querySelector(`.schedule-cell[data-day="${event.day}"][data-hour="${event.hour}"]`);
+                if (cell) {
+                    const div = document.createElement('div');
+                    div.className = 'schedule-event';
+                    div.innerText = event.title;
+                    div.title = event.title;
+                    div.onclick = (e) => {
+                        e.stopPropagation();
+                        if(confirm(`Delete event "${event.title}"?`)) {
+                            scheduleEvents = scheduleEvents.filter(ev => ev.id !== event.id);
+                            renderEvents();
+                        }
+                    };
+                    cell.appendChild(div);
+                }
+            });
+        }
+
+        function clearSchedule() {
+            if(confirm("Clear all events?")) {
+                scheduleEvents = [];
+                renderEvents();
+            }
+        }
+
+        function getScheduleData() {
+            return scheduleEvents;
+        }
+
+        // --- 14. NODE EDITOR ENGINE ---
+        let nodes = [];
+        let connections = [];
+        let nodeCounter = 0;
+        let isConnecting = false;
+        let connectionStart = null;
+        let tempLine = null;
+
+        function initNodeEditor() {
+            // Setup canvas interactions if needed
+            const canvas = document.getElementById('node-canvas');
+            canvas.addEventListener('mousemove', (e) => {
+                if (isConnecting && tempLine) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    updateTempLine(x, y);
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                if (isConnecting) {
+                    cancelConnection();
+                }
+            });
+            
+            renderNodes();
+            renderConnections();
+        }
+
+        function addNode(type) {
+            const node = {
+                id: `node-${nodeCounter++}`,
+                type: type,
+                x: 100 + (nodes.length * 20),
+                y: 100 + (nodes.length * 20),
+                title: type.charAt(0).toUpperCase() + type.slice(1),
+                content: 'Node Content'
+            };
+            nodes.push(node);
+            renderNodes();
+        }
+
+        function renderNodes() {
+            const canvas = document.getElementById('node-canvas');
+            // Keep SVG layer
+            const svg = document.getElementById('connections-layer');
+            canvas.innerHTML = '';
+            canvas.appendChild(svg);
+
+            nodes.forEach(node => {
+                const el = document.createElement('div');
+                el.className = 'node-block';
+                el.id = node.id;
+                el.style.left = node.x + 'px';
+                el.style.top = node.y + 'px';
+                
+                let portsHtml = '';
+                if (node.type !== 'input') portsHtml += '<div class="node-port input" onmousedown="startConnection(event, \'' + node.id + '\', \'input\')"></div>';
+                if (node.type !== 'output') portsHtml += '<div class="node-port output" onmousedown="startConnection(event, \'' + node.id + '\', \'output\')"></div>';
+
+                el.innerHTML = `
+                    <div class="node-header">
+                        ${node.title}
+                        <div style="cursor: pointer; font-size: 10px;" onclick="deleteNode('${node.id}')">✕</div>
+                    </div>
+                    <div class="node-content" contenteditable="true" onblur="updateNodeContent('${node.id}', this.innerText)">${node.content}</div>
+                    <div class="node-ports">
+                        ${portsHtml}
+                    </div>
+                `;
+                
+                canvas.appendChild(el);
+                makeDraggableNode(el, node);
+            });
+            
+            renderConnections();
+        }
+
+        function makeDraggableNode(element, data) {
+            interact(element).draggable({
+                allowFrom: '.node-header',
+                onmove: (event) => {
+                    const target = event.target;
+                    const x = (parseFloat(target.style.left) || 0) + event.dx;
+                    const y = (parseFloat(target.style.top) || 0) + event.dy;
+
+                    target.style.left = x + 'px';
+                    target.style.top = y + 'px';
+
+                    data.x = x;
+                    data.y = y;
+                    
+                    renderConnections();
+                }
+            });
+        }
+
+        function updateNodeContent(id, content) {
+            const node = nodes.find(n => n.id === id);
+            if (node) node.content = content;
+        }
+
+        function deleteNode(id) {
+            nodes = nodes.filter(n => n.id !== id);
+            connections = connections.filter(c => c.from !== id && c.to !== id);
+            renderNodes();
+        }
+
+        function clearNodes() {
+            if(confirm("Clear all nodes?")) {
+                nodes = [];
+                connections = [];
+                renderNodes();
+            }
+        }
+
+        // Connection Logic
+        function startConnection(e, nodeId, type) {
+            e.stopPropagation();
+            if (type === 'output') {
+                isConnecting = true;
+                connectionStart = { nodeId, x: e.clientX, y: e.clientY };
+                
+                // Create temp line
+                const svg = document.getElementById('connections-layer');
+                tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                tempLine.setAttribute('stroke', '#FFD700');
+                tempLine.setAttribute('stroke-width', '2');
+                svg.appendChild(tempLine);
+                
+                const rect = document.getElementById('node-canvas').getBoundingClientRect();
+                const startX = e.clientX - rect.left;
+                const startY = e.clientY - rect.top;
+                
+                tempLine.setAttribute('x1', startX);
+                tempLine.setAttribute('y1', startY);
+                tempLine.setAttribute('x2', startX);
+                tempLine.setAttribute('y2', startY);
+            } else if (type === 'input' && isConnecting) {
+                // Complete connection
+                if (connectionStart.nodeId !== nodeId) {
+                    connections.push({ from: connectionStart.nodeId, to: nodeId });
+                    renderConnections();
+                }
+                cancelConnection();
+            }
+        }
+
+        function updateTempLine(x, y) {
+            if (tempLine) {
+                tempLine.setAttribute('x2', x);
+                tempLine.setAttribute('y2', y);
+            }
+        }
+
+        function cancelConnection() {
+            isConnecting = false;
+            connectionStart = null;
+            if (tempLine) {
+                tempLine.remove();
+                tempLine = null;
+            }
+        }
+
+        function renderConnections() {
+            const svg = document.getElementById('connections-layer');
+            svg.innerHTML = ''; // Clear lines
+            if (tempLine) svg.appendChild(tempLine); // Keep temp line if dragging
+
+            const canvasRect = document.getElementById('node-canvas').getBoundingClientRect();
+
+            connections.forEach(conn => {
+                const fromNode = document.getElementById(conn.from);
+                const toNode = document.getElementById(conn.to);
+
+                if (fromNode && toNode) {
+                    const fromPort = fromNode.querySelector('.node-port.output');
+                    const toPort = toNode.querySelector('.node-port.input');
+                    
+                    const fromRect = fromPort.getBoundingClientRect();
+                    const toRect = toPort.getBoundingClientRect();
+
+                    const x1 = fromRect.left + fromRect.width / 2 - canvasRect.left;
+                    const y1 = fromRect.top + fromRect.height / 2 - canvasRect.top;
+                    const x2 = toRect.left + toRect.width / 2 - canvasRect.left;
+                    const y2 = toRect.top + toRect.height / 2 - canvasRect.top;
+
+                    // Bezier curve
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    const controlOffset = Math.abs(x2 - x1) * 0.5;
+                    const d = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+                    
+                    path.setAttribute('d', d);
+                    path.setAttribute('stroke', '#FFD700');
+                    path.setAttribute('stroke-width', '2');
+                    path.setAttribute('fill', 'none');
+                    
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        function getNodeData() {
+            return { nodes, connections };
+        }
+
+        // --- 13. PROJECTS ENGINE ---
+        let currentSaveType = '';
+        let currentDataGetter = null;
+
+        function openSaveDialog(type, dataGetter) {
+            currentSaveType = type;
+            currentDataGetter = dataGetter;
+            document.getElementById('save-project-modal').classList.add('active');
+        }
+
+        function closeSaveDialog() {
+            document.getElementById('save-project-modal').classList.remove('active');
+            document.getElementById('project-name').value = '';
+            document.getElementById('project-desc').value = '';
+        }
+
+        function confirmSaveProject() {
+            const name = document.getElementById('project-name').value;
+            const desc = document.getElementById('project-desc').value;
+            
+            if (!name) {
+                alert("Please enter a project name.");
+                return;
+            }
+
+            const project = {
+                id: Date.now().toString(),
+                name: name,
+                description: desc,
+                type: currentSaveType,
+                data: currentDataGetter(),
+                date: new Date().toLocaleDateString()
+            };
+
+            let projects = JSON.parse(localStorage.getItem('epsilonProjects') || '[]');
+            projects.push(project);
+            localStorage.setItem('epsilonProjects', JSON.stringify(projects));
+
+            closeSaveDialog();
+            alert("Project saved successfully!");
+            loadProjectsPage(); // Refresh list if on projects page
+        }
+
+        function loadProjectsPage() {
+            const container = document.getElementById('projects-list');
+            container.innerHTML = '';
+            
+            const projects = JSON.parse(localStorage.getItem('epsilonProjects') || '[]');
+            
+            if (projects.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No saved projects yet.</p>';
+                return;
+            }
+
+            projects.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.innerHTML = `
+                    <h4>${p.name}</h4>
+                    <p>${p.description || 'No description'}</p>
+                    <div class="project-meta">
+                        <span>${p.type.toUpperCase()}</span>
+                        <span>${p.date}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn btn-outline" style="flex: 1; font-size: 12px;" onclick="openProject('${p.id}')">Open</button>
+                        <button class="btn btn-outline" style="flex: 1; font-size: 12px; color: red; border-color: red;" onclick="deleteProject('${p.id}')">Delete</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function deleteProject(id) {
+            if (confirm("Are you sure you want to delete this project?")) {
+                let projects = JSON.parse(localStorage.getItem('epsilonProjects') || '[]');
+                projects = projects.filter(p => p.id !== id);
+                localStorage.setItem('epsilonProjects', JSON.stringify(projects));
+                loadProjectsPage();
+            }
+        }
+
+        function openProject(id) {
+            const projects = JSON.parse(localStorage.getItem('epsilonProjects') || '[]');
+            const project = projects.find(p => p.id === id);
+
+            if (!project) return;
+
+            if (project.type === 'excel') {
+                excelData = project.data;
+                // Re-render excel grid with data
+                // We need to update the inputs based on excelData
+                document.querySelectorAll('.excel-table input').forEach(input => input.value = '');
+                for (let cellId in excelData) {
+                    const input = document.querySelector(`td[data-id="${cellId}"] input`);
+                    if (input) {
+                        input.value = excelData[cellId];
+                        // If it's a formula, we might want to evaluate it, but for now just load value
+                        if (excelData[cellId].startsWith('=')) {
+                            evaluateFormula(cellId, excelData[cellId]);
+                        }
+                    }
+                }
+                showPage('excel');
+            } else if (project.type === 'slides') {
+                slides = project.data;
+                currentSlideIndex = 0;
+                renderSlideThumbnails();
+                renderCurrentSlide();
+                showPage('slides');
+            } else if (project.type === 'schedule') {
+                scheduleEvents = project.data;
+                renderEvents();
+                showPage('schedule');
+            } else if (project.type === 'node') {
+                nodes = project.data.nodes;
+                connections = project.data.connections;
+                renderNodes();
+                showPage('node-editor');
+            }
+        }
+
+        // --- 15. EXTENSIONS ENGINE ---
+        function loadExtensionsPage() {
+            const container = document.getElementById('extensions-list');
+            container.innerHTML = '';
+
+            const extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+
+            if (extensions.length === 0) {
+                container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted);">No extensions yet. Create your first extension!</p>';
+                return;
+            }
+
+            extensions.forEach(ext => {
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                const enabled = ext.enabled !== false; // default true
+                const toggleHtml = ext.type === 'page' ? `
+                    <label class="switch" style="margin-left: auto;">
+                        <input type="checkbox" ${enabled ? 'checked' : ''} onchange="toggleExtension('${ext.id}', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                ` : '';
+                card.innerHTML = `
+                    <h4>${ext.name} ${toggleHtml}</h4>
+                    <p>${ext.description || 'No description'}</p>
+                    <div class="project-meta">
+                        <span>${ext.type.toUpperCase()}</span>
+                        <span>${ext.date}</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn btn-outline" style="flex: 1; font-size: 12px;" onclick="downloadExtension('${ext.id}')">Download</button>
+                        <button class="btn btn-outline" style="flex: 1; font-size: 12px; color: red; border-color: red;" onclick="deleteExtension('${ext.id}')">Delete</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openCreateExtensionModal() {
+            document.getElementById('create-extension-modal').classList.add('active');
+        }
+
+        function closeCreateExtensionModal() {
+            document.getElementById('create-extension-modal').classList.remove('active');
+            document.getElementById('extension-type').value = 'page';
+            document.getElementById('extension-name').value = '';
+            document.getElementById('extension-desc').value = '';
+            document.getElementById('extension-html').value = '';
+            document.getElementById('extension-css').value = '';
+            document.getElementById('extension-js').value = '';
+        }
+
+        function saveExtension() {
+            const type = document.getElementById('extension-type').value;
+            const name = document.getElementById('extension-name').value;
+            const desc = document.getElementById('extension-desc').value;
+            const html = document.getElementById('extension-html').value;
+            const css = document.getElementById('extension-css').value;
+            const js = document.getElementById('extension-js').value;
+
+            if (!name) {
+                alert("Please enter an extension name.");
+                return;
+            }
+
+            const extension = {
+                id: Date.now().toString(),
+                type: type,
+                name: name,
+                description: desc,
+                html: html,
+                css: css,
+                js: js,
+                enabled: true,
+                date: new Date().toLocaleDateString()
+            };
+
+            let extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+            extensions.push(extension);
+            localStorage.setItem('epsilonExtensions', JSON.stringify(extensions));
+
+            // Page will be added when downloaded
+
+            closeCreateExtensionModal();
+            alert("Extension saved successfully!");
+            loadExtensionsPage();
+        }
+
+        function deleteExtension(id) {
+            if (confirm("Are you sure you want to delete this extension?")) {
+                let extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+                const ext = extensions.find(e => e.id === id);
+                extensions = extensions.filter(ext => ext.id !== id);
+                localStorage.setItem('epsilonExtensions', JSON.stringify(extensions));
+                if (ext && ext.type === 'page') {
+                    removeExtensionPage(id);
+                }
+                loadExtensionsPage();
+            }
+        }
+
+        function downloadExtension(id) {
+            const extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+            const extension = extensions.find(ext => ext.id === id);
+
+            if (!extension) return;
+
+            if (extension.type === 'page') {
+                addExtensionPage(extension);
+                showPage(extension.id);
+            }
+        }
+
+        function toggleExtension(id, enabled) {
+            let extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+            const ext = extensions.find(e => e.id === id);
+            if (ext) {
+                ext.enabled = enabled;
+                localStorage.setItem('epsilonExtensions', JSON.stringify(extensions));
+                if (ext.type === 'page') {
+                    if (enabled) {
+                        addExtensionPage(ext);
+                    } else {
+                        removeExtensionPage(ext.id);
+                    }
+                }
+            }
+        }
+
+        function loadEnabledExtensions() {
+            const extensions = JSON.parse(localStorage.getItem('epsilonExtensions') || '[]');
+            extensions.forEach(ext => {
+                if (ext.type === 'page' && ext.enabled !== false) {
+                    addExtensionPage(ext);
+                }
+            });
+        }
+
+        function addExtensionPage(ext) {
+            // Add to nav
+            const nav = document.querySelector('.sidebar nav');
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-item';
+            navItem.id = `nav-${ext.id}`;
+            navItem.onclick = () => showPage(ext.id);
+            navItem.innerHTML = `
+                <i data-lucide="code"></i> ${ext.name}
+            `;
+            nav.appendChild(navItem);
+            lucide.createIcons();
+
+            // Add content panel
+            const main = document.querySelector('.main-container');
+            const section = document.createElement('section');
+            section.id = `${ext.id}-page`;
+            section.className = 'content-panel';
+            section.innerHTML = ext.html;
+            main.appendChild(section);
+
+            // Add CSS
+            if (ext.css) {
+                const style = document.createElement('style');
+                style.id = `style-${ext.id}`;
+                style.textContent = ext.css;
+                document.head.appendChild(style);
+            }
+
+            // Add JS
+            if (ext.js) {
+                try {
+                    eval(ext.js);
+                } catch (e) {
+                    console.error('Error in extension JS:', e);
+                }
+            }
+        }
+
+        function removeExtensionPage(id) {
+            // Remove nav item
+            const navItem = document.getElementById(`nav-${id}`);
+            if (navItem) navItem.remove();
+
+            // Remove content panel
+            const section = document.getElementById(`${id}-page`);
+            if (section) section.remove();
+
+            // Remove CSS
+            const style = document.getElementById(`style-${id}`);
+            if (style) style.remove();
+        }
+    </script>
+</body>
+</html>
