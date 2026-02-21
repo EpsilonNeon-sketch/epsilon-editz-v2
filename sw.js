@@ -2,7 +2,7 @@ const CACHE_NAME = 'epsilon-editz-v1';
 const ASSETS = [
     './',
     './index.html',
-    './ee-lg.jpeg',
+    './ee-lg.png',
     'https://cdn.tailwindcss.com',
     'https://unpkg.com/lucide@latest',
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
@@ -25,3 +25,4 @@ self.addEventListener('fetch', (event) => {
     );
 
 });
+
