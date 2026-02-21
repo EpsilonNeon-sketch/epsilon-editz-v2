@@ -1,0 +1,17 @@
+{
+    "name": "Epsilon editz | Creative Studio",
+    "short_name": "Epsilon Editz",
+    "description": "A professional creative studio for 3D editing and design.",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#FFD700",
+    "icons": [
+        {
+            "src": "ee-lg.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
