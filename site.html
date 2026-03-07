@@ -6,6 +6,7 @@
     <link rel="icon" href="./ee-lg.png">
     <title>Epsilon editz | Creative Studio</title>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <link rel="manifest" href="manifest.json">
@@ -3466,10 +3467,22 @@
          if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js');
         }
+        const SITE_NAME = 'editz'; // Change for each site
+
+(async function() {
+    const { createClient } = supabase;
+    const client = createClient('https://gfsqzkyviivhvyqadpeg.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdmc3F6a3l2aWl2aHZ5cWFkcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NDI0NDQsImV4cCI6MjA4NjAxODQ0NH0.MwC6dMZKFZMyklCJKqr4DPek8dxR-EswBZSd1L_AkMA');
+    const { data } = await client.from('blocked_sites').select('site_name').eq('site_name', SITE_NAME).single();
+    if (data) {
+        document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#000;color:#f3e8ff;font-family:Inter,sans-serif;text-align:center;padding:20px;"><div style="max-width:500px;"><div style="font-size:80px;margin-bottom:20px;">🚫</div><h1 style="font-size:48px;font-weight:800;margin-bottom:16px;color:#a855f7;">Server Blocked</h1><p style="font-size:20px;color:#c084fc;margin-bottom:12px;">Epsilon ${SITE_NAME.charAt(0).toUpperCase() + SITE_NAME.slice(1)} is currently unavailable</p><p style="font-size:14px;color:#9333ea;">This site has been temporarily blocked by administrators</p></div></div>`;
+    }
+})();
+
     </script>
 </body>
 
 </html>
+
 
 
 
